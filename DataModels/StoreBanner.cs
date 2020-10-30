@@ -25,5 +25,4 @@ namespace FileExplorer.DataModels
         public StoreBanner() { }
 
     }
-  
 }

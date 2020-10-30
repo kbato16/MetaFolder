@@ -5,6 +5,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:FileExplorer"
+        xmlns:db="clr-namespace:FileExplorer.DataModels"
         xmlns:converters="clr-namespace:FileExplorer.Converters"
         mc:Ignorable="d"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
@@ -16,10 +17,16 @@
         Background="{DynamicResource MaterialDesignPaper}"
         FontFamily="{DynamicResource MaterialDesignFont}"
         DataContext="{Binding RelativeSource={RelativeSource Self}}"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="450" Width="500
+        ">
     <Window.Resources>
         <converters:TagToBannerConverter x:Key="BannerConverter"/>
         <converters:BannerToBoolConverter x:Key="IsVisibleConverter"/>
+        <converters:KeyValueToFolderTreeConverter x:Key="ConvertToFolderTree"/>
+        <converters:KeyValueToDirectoryMeta x:Key="ConvertToDirectoryMeta"/>
+        <HierarchicalDataTemplate x:Key="xt" DataType="{x:Type db:FolderTreeData}" ItemsSource="{Binding ChildDirectories}">
+            <TextBlock Text="{Binding ParentDirectory.Name}" />
+        </HierarchicalDataTemplate>
     </Window.Resources>
     <DockPanel
         Width="Auto"
@@ -31,7 +38,17 @@
             Orientation="Horizontal" 
             DockPanel.Dock="Top"/>
         <TreeView 
-            Name="fileTree">
+            ItemsSource="{Binding RootFolders}"
+            x:Name="fileTree"
+            Style="{StaticResource MaterialDesignTreeView}">
+            <TreeView.ItemTemplate>
+                <HierarchicalDataTemplate 
+                    DataType="{x:Type db:FolderTreeData}" 
+                    ItemsSource="{Binding ChildDirectories}">
+                    <TextBlock Text="{Binding ParentDirectory.Name}" />
+                </HierarchicalDataTemplate>
+            </TreeView.ItemTemplate>
+
             <!--
             <TreeView.Resources>
                 <Style TargetType="{x:Type TreeViewItem}"
@@ -67,6 +84,6 @@
             </TreeView.Resources>
             -->
         </TreeView>
-        
+
     </DockPanel>
 </Window>

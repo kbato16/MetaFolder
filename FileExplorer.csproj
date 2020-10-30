@@ -95,6 +95,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Converters\BannerToBoolConverter.cs" />
+    <Compile Include="Converters\KeyValueToFolderTreeConverter.cs" />
     <Compile Include="Converters\TagToBannerConverter.cs" />
     <Compile Include="DataModels\DBServices.cs" />
     <Compile Include="DataModels\DirectoryMeta.cs" />

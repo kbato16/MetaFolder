@@ -10,6 +10,7 @@ using System.Linq;
 using System.IO;
 using System;
 using FileExplorer.Properties;
+using System.Windows.Input;
 
 namespace FileExplorer
 {
@@ -17,9 +18,8 @@ namespace FileExplorer
     {
         public static readonly StoreBanner NoBanner = new StoreBanner() { BANNER_NAME = "None", BANNER_CODE = "000" };
         public bool IsApplicationUpdate = false;
-        public Dictionary<string, StoreBanner> Banners { get; set; }
-        public Dictionary<string, DirectoryMeta> Folders { get; set; }
-
+        public ObservableConcurrentDictionary<string, StoreBanner> Banners { get; set; }
+        public ObservableConcurrentDictionary<string, DirectoryMeta> Folders { get; set; }
         public void AddBanner(StoreBanner storeBanner)
         {
             IsApplicationUpdate = true;
@@ -119,7 +119,11 @@ namespace FileExplorer
         }
 
         #region Singleton pattern
-        private DBServices() { Banners = new Dictionary<string, StoreBanner>(); Folders = new Dictionary<string, DirectoryMeta>(); }
+        private DBServices() 
+        { 
+            Banners = new Dictionary<string, StoreBanner>(); 
+            Folders = new Dictionary<string, DirectoryMeta>(); 
+        }
         private static readonly DBServices instance = new DBServices();
         public static DBServices Instance { get { return instance; } }
         #endregion

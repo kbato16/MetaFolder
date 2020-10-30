@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
+using System.Collections;
+using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 
 namespace FileExplorer
 {
@@ -159,4 +163,5 @@ namespace FileExplorer
             return new Dictionary<TKey, TValue>(v);
         }
     }
+
 }
