@@ -14,6 +14,7 @@ namespace FileExplorer
     {
         private void App_Start(object sender, StartupEventArgs e)
         {
+
             if (Settings.Default.IsFirstRun)
             {
                 MessageBoxResult result = MessageBox.Show("Is it a GR Machine?", "For Root Directories", MessageBoxButton.YesNo);

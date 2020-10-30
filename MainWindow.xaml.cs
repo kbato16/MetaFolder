@@ -31,7 +31,7 @@ namespace FileExplorer
         //public ObservableCollection<DirectoryMeta> RootFolders { get; set; } = new ObservableCollection<DirectoryMeta>();
         //public ObservableConcurrentDictionary<string, DirectoryMeta> RootFolders { get; set; } = new ObservableConcurrentDictionary<string, DirectoryMeta>();
         public ObservableConcurrentDictionary<DirectoryMeta, FolderTreeData> RootFolders { get; set; } = new ObservableConcurrentDictionary<DirectoryMeta, FolderTreeData>();
-        public ObservableCollection<FolderTreeData> FD = new ObservableCollection<FolderTreeData>();
+        public ObservableCollection<DirectoryMeta> FD = new ObservableCollection<DirectoryMeta>();
         private DBFileWatch dbFileWatch = new DBFileWatch();
         private static bool HasSearched = false;
         
@@ -40,7 +40,7 @@ namespace FileExplorer
             InitializeComponent();
             InitRootFolders();
             //DB.InitializeDB();
-
+            //
             fileTree.UpdateLayout();
             //InitTopBar();
             //dbFileWatch.FileChanged += DbFileWatch_FileChanged;
@@ -85,17 +85,28 @@ namespace FileExplorer
                 {
                     //RootFolders.TryAdd(dir, CreateTreeViewItem(new DirectoryInfo(dir)));
                     DirectoryMeta directoryMeta = new DirectoryMeta(dir);
-                    FolderTreeData fData = new FolderTreeData(directoryMeta.DirectoryInfo);
-                    var cd = fData.ChildDirectories;
-                    var cf = fData.DirectoryFiles;
-                    RootFolders.TryAdd(directoryMeta, fData);
-                    FD.Add(directoryMeta.DirectoryInfo);
+                    //FolderTreeData fData = new FolderTreeData(directoryMeta.DirectoryInfo);
+                    //var cd = fData.ChildDirectories;
+                    //var cf = fData.DirectoryFiles;
+                    //RootFolders.TryAdd(directoryMeta, fData);
+                    directoryMeta.LoadChildDirectories(Dispatcher);
+                    FD.Add(directoryMeta);
                 }
             }
             fileTree.ItemsSource = FD;
             
             //fileTree.ItemsSource = RootFolders.Values;
             //RootFolders.CollectionChanged += RootFolders_CollectionChanged;
+        }
+
+        private void fileTree_Expanded(object sender, RoutedEventArgs e)
+        {
+            var t = e.GetType();
+            TreeViewItem item = (TreeViewItem)e.OriginalSource;
+            var test = item.DataContext as DirectoryMeta;
+            test.LoadChildDirectories(this.Dispatcher);
+            //fileTree.UpdateLayout();
+            //fileTree.Items.Refresh();
         }
         private void InitTopBar()
         {
@@ -256,6 +267,8 @@ namespace FileExplorer
                 }
             }
         }
+
+       
     }
     public class DBFileWatch
     {

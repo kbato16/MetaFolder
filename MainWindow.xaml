@@ -40,13 +40,15 @@
         <TreeView 
             ItemsSource="{Binding RootFolders}"
             x:Name="fileTree"
+            TreeViewItem.Expanded="fileTree_Expanded"
             Style="{StaticResource MaterialDesignTreeView}">
             <TreeView.ItemTemplate>
                 <HierarchicalDataTemplate 
-                    DataType="{x:Type db:FolderTreeData}" 
-                    ItemsSource="{Binding ChildDirectories}">
-                    <TextBlock Text="{Binding ParentDirectory.Name}" />
+                    DataType="{x:Type db:DirectoryMeta}" 
+                    ItemsSource="{Binding  ChildDirectories}">
+                    <TextBlock Text="{Binding Name}" />
                 </HierarchicalDataTemplate>
+                
             </TreeView.ItemTemplate>
 
             <!--

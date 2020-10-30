@@ -1,25 +1,26 @@
 ﻿using LiteDB;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Windows.Threading;
 
 namespace FileExplorer.DataModels
 {
     public class DirectoryMeta : FileSystemInfo
     {
-        private List<DirectoryMeta> _childDirs;
+        private ObservableCollection<DirectoryMeta> _childDirs = new ObservableCollection<DirectoryMeta>();
         private List<FileInfo> _dirFiles;
         public DirectoryInfo DirectoryInfo { get; set; }
-        public List<DirectoryMeta> ChildDirectories
+        public ObservableCollection<DirectoryMeta> ChildDirectories
         {
             get
             {
-                if (_dirFiles != null)
-                    return _childDirs;
-                else
-                    return new List<DirectoryMeta>();
+                return _childDirs;
             }
             private set { _childDirs = value; }
         }
@@ -46,8 +47,9 @@ namespace FileExplorer.DataModels
         public string DirectoryPath { get; set; }
         [BsonField("Name")]
         public string _Name { get; set; }
-        public override bool Exists { get { return DirectoryInfo.Exists; } }
+        public override bool Exists { get { return _Exists; } }
         public override string Name { get { return _Name; } }
+        private bool _Exists;
         
         [BsonCtor]
         public DirectoryMeta() 
@@ -57,7 +59,9 @@ namespace FileExplorer.DataModels
                 DirectoryInfo = new DirectoryInfo(DirectoryPath);
                 FullPath = DirectoryPath;
                 base.FullPath = DirectoryPath;
-            } 
+            }
+            _Exists = false;
+            ChildDirectories.Add(null);
         }
         public DirectoryMeta(string path)
         { 
@@ -66,8 +70,12 @@ namespace FileExplorer.DataModels
             DirectoryInfo = new DirectoryInfo(DirectoryPath);
             _Name = DirectoryInfo.Name;
             StoreBanner = DBServices.NoBanner;
-            ChildDirectories = DirectoryInfo.GetDirectories().ToList().ConvertAll(x => (DirectoryMeta)x);
-            DirectoryFiles = DirectoryInfo.GetFiles().ToList();
+            //ChildDirectories = DirectoryInfo.GetDirectories().ToList().ConvertAll(x => (DirectoryMeta)x);
+            
+            if (Exists)
+                DirectoryFiles = DirectoryInfo.GetFiles().ToList();
+
+            ChildDirectories.Add(null);
         }
         public DirectoryMeta(DirectoryInfo dinfo)
         {
@@ -76,6 +84,8 @@ namespace FileExplorer.DataModels
             DirectoryInfo = dinfo;
             _Name = DirectoryInfo.Name;
             StoreBanner = DBServices.NoBanner;
+            _Exists = new DirectoryInfo(DirectoryPath).Exists;
+            ChildDirectories.Add(null);
         }
         public DirectoryMeta(string path, StoreBanner banner)
         {
@@ -84,6 +94,9 @@ namespace FileExplorer.DataModels
             base.FullPath = DirectoryPath;
             StoreBanner = banner;
             DirectoryInfo = new DirectoryInfo(DirectoryPath);
+            _Exists = new DirectoryInfo(DirectoryPath).Exists;
+            ChildDirectories.Add(null);
+
         }
         public DirectoryMeta(int id, StoreBanner storeBanner, bool isRevitProject, string directoryPath)
         {
@@ -94,12 +107,26 @@ namespace FileExplorer.DataModels
             base.FullPath = DirectoryPath;
             DirectoryInfo = new DirectoryInfo(DirectoryPath);
             _Name = DirectoryInfo.Name;
+            ChildDirectories.Add(null);
         }
         public DirectoryInfo GetDirectoryInfo()
         {
             if (this.DirectoryInfo == null)
                 DirectoryInfo = new DirectoryInfo(DirectoryPath);
             return DirectoryInfo;
+        }
+        public void LoadChildDirectories(Dispatcher dispatcher)
+        {
+            ChildDirectories.Clear();
+            GetDirectoryInfo().GetDirectories().ToList().ForEach(x =>
+            {
+                var meta = new DirectoryMeta(x);
+                dispatcher.Invoke(() =>
+                {
+                    meta.ChildDirectories.Add(null);
+                    ChildDirectories.Add(meta);
+                });
+            });
         }
         public override void Delete()
         {
