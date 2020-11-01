@@ -24,33 +24,52 @@
         <converters:BannerToBoolConverter x:Key="IsVisibleConverter"/>
         <converters:KeyValueToFolderTreeConverter x:Key="ConvertToFolderTree"/>
         <converters:KeyValueToDirectoryMeta x:Key="ConvertToDirectoryMeta"/>
-        <HierarchicalDataTemplate x:Key="xt" DataType="{x:Type db:FolderTreeData}" ItemsSource="{Binding ChildDirectories}">
-            <TextBlock Text="{Binding ParentDirectory.Name}" />
+        <converters:CollectionSourceConverter x:Key="CollectionConverter"/>
+        <HierarchicalDataTemplate x:Key="SimpleTree"
+                    DataType="{x:Type db:DirectoryMeta}" 
+                    ItemsSource="{Binding ChildDirectories}">
+            <TextBlock Text="{Binding Name}"/>
         </HierarchicalDataTemplate>
     </Window.Resources>
     <DockPanel
         Width="Auto"
         Height="Auto">
-        <StackPanel 
+        <Grid Width="Auto"
+              Margin="5"
+              DockPanel.Dock="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="80"/>
+            </Grid.ColumnDefinitions>
+            <TextBox 
+                Name="txt_Search"
+                VerticalContentAlignment="Center" 
+                Grid.Column="0"
+                Grid.Row="0"
+                KeyDown="txt_Search_KeyDown"/>
+            <Button Name="btnSearch" Content="Search" Grid.Column="1" Grid.Row="0" Click="btnSearch_Click"/>
+
+        </Grid>
+        <WrapPanel 
             Height="50"
             Margin="5"
             x:Name="TopBar" 
             Orientation="Horizontal" 
             DockPanel.Dock="Top"/>
-        <TreeView 
-            ItemsSource="{Binding RootFolders}"
+
+        <TreeView
             x:Name="fileTree"
-            TreeViewItem.Expanded="fileTree_Expanded"
+            TreeViewItem.Expanded="FileTree_Expanded"
             Style="{StaticResource MaterialDesignTreeView}">
             <TreeView.ItemTemplate>
-                <HierarchicalDataTemplate 
-                    DataType="{x:Type db:DirectoryMeta}" 
-                    ItemsSource="{Binding  ChildDirectories}">
-                    <TextBlock Text="{Binding Name}" />
+                <HierarchicalDataTemplate
+                    DataType="{x:Type db:DirectoryMeta}"
+                    ItemsSource="{Binding ChildItems}">
+                    <TextBlock 
+                        Text="{Binding Name}" 
+                        ToolTip="{Binding DirectoryPath}"/>
                 </HierarchicalDataTemplate>
-                
             </TreeView.ItemTemplate>
-
             <!--
             <TreeView.Resources>
                 <Style TargetType="{x:Type TreeViewItem}"

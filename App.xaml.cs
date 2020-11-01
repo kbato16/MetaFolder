@@ -14,7 +14,6 @@ namespace FileExplorer
     {
         private void App_Start(object sender, StartupEventArgs e)
         {
-
             if (Settings.Default.IsFirstRun)
             {
                 MessageBoxResult result = MessageBox.Show("Is it a GR Machine?", "For Root Directories", MessageBoxButton.YesNo);
@@ -31,7 +30,6 @@ namespace FileExplorer
                         break;
                 }
             }
-
             Settings.Default.IsFirstRun = false;
             Settings.Default.Save();
             
@@ -40,13 +38,8 @@ namespace FileExplorer
             {
                 foreach (var dir in Settings.Default.ProjectRoot)
                 {
-                    //RootFolders.TryAdd(dir, CreateTreeViewItem(new DirectoryInfo(dir)));
                     DirectoryMeta directoryMeta = new DirectoryMeta(dir);
-                    FolderTreeData fData = new FolderTreeData(directoryMeta.DirectoryInfo);
-                    var cd = fData.ChildDirectories;
-                    var cf = fData.DirectoryFiles;
-                    main.RootFolders.TryAdd(directoryMeta, fData);
-                    main.FD.Add(directoryMeta.DirectoryInfo);
+                    main.RootFolders.Add(directoryMeta);
                 }
             }
             main.Show();

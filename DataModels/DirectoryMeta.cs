@@ -1,4 +1,5 @@
 ﻿using LiteDB;
+using MaterialDesignThemes.Wpf.Converters;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -6,36 +7,27 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Text.RegularExpressions;
 using System.Threading;
+using System.Windows.Controls;
 using System.Windows.Threading;
 
 namespace FileExplorer.DataModels
 {
-    public class DirectoryMeta : FileSystemInfo
+    public class DirectoryMeta
     {
-        private ObservableCollection<DirectoryMeta> _childDirs = new ObservableCollection<DirectoryMeta>();
-        private List<FileInfo> _dirFiles;
-        public DirectoryInfo DirectoryInfo { get; set; }
-        public ObservableCollection<DirectoryMeta> ChildDirectories
+        [BsonIgnore]
+        private ObservableCollection<DirectoryMeta> _childItems = new ObservableCollection<DirectoryMeta>();
+        [BsonIgnore]
+        public ObservableCollection<DirectoryMeta> ChildItems
         {
             get
             {
-                return _childDirs;
+                return _childItems;
             }
-            private set { _childDirs = value; }
+            private set { _childItems = value; }
         }
-        public List<FileInfo> DirectoryFiles
-        {
-            get
-            {
-                if (_dirFiles != null)
-                    return _dirFiles;
-                else
-                    return new List<FileInfo>();
-            }
-            private set { _dirFiles = value; }
-        }
-
         [BsonId]
         public int Id { get; private set; }
         [BsonField("StoreBanner")]
@@ -46,98 +38,91 @@ namespace FileExplorer.DataModels
         [BsonField("DirectoryPath")]
         public string DirectoryPath { get; set; }
         [BsonField("Name")]
-        public string _Name { get; set; }
-        public override bool Exists { get { return _Exists; } }
-        public override string Name { get { return _Name; } }
-        private bool _Exists;
-        
+        public string Name { get; set; }
+        [BsonIgnore]
+        public FileSystemInfo ItemFSInfo { get; set; }
+        [BsonIgnore]
+        public bool IsDirectory { get { return File.GetAttributes(DirectoryPath) == FileAttributes.Directory; } }
+        [BsonIgnore]
+        public string Type { get { return IsDirectory ? "Directory" : "File"; } }
         [BsonCtor]
-        public DirectoryMeta() 
-        { 
-            if (!string.IsNullOrEmpty(DirectoryPath)) 
-            {
-                DirectoryInfo = new DirectoryInfo(DirectoryPath);
-                FullPath = DirectoryPath;
-                base.FullPath = DirectoryPath;
-            }
-            _Exists = false;
-            ChildDirectories.Add(null);
+        public DirectoryMeta()
+        {
+            ChildItems.Add(null);
         }
         public DirectoryMeta(string path)
-        { 
-            DirectoryPath = path;
-            base.FullPath = DirectoryPath;
-            DirectoryInfo = new DirectoryInfo(DirectoryPath);
-            _Name = DirectoryInfo.Name;
-            StoreBanner = DBServices.NoBanner;
-            //ChildDirectories = DirectoryInfo.GetDirectories().ToList().ConvertAll(x => (DirectoryMeta)x);
-            
-            if (Exists)
-                DirectoryFiles = DirectoryInfo.GetFiles().ToList();
-
-            ChildDirectories.Add(null);
-        }
-        public DirectoryMeta(DirectoryInfo dinfo)
         {
-            DirectoryPath = dinfo.FullName;
-            base.FullPath = DirectoryPath;
-            DirectoryInfo = dinfo;
-            _Name = DirectoryInfo.Name;
-            StoreBanner = DBServices.NoBanner;
-            _Exists = new DirectoryInfo(DirectoryPath).Exists;
-            ChildDirectories.Add(null);
+            DirectoryPath = path;
+            ItemFSInfo = IsDirectory ? new DirectoryInfo(DirectoryPath) : (new FileInfo(DirectoryPath)) as FileSystemInfo;
+            Name = ItemFSInfo.Name;
+            if(IsDirectory)
+            {
+                StoreBanner = DBServices.NoBanner;
+                ChildItems.Add(null);
+            }
+        }
+        public DirectoryMeta(FileSystemInfo fsinfo)
+        {
+            DirectoryPath = fsinfo.FullName;
+            ItemFSInfo = fsinfo;
+            Name = ItemFSInfo.Name;
+            if (IsDirectory)
+            {
+                StoreBanner = DBServices.NoBanner;
+                ChildItems.Add(null);
+            }
         }
         public DirectoryMeta(string path, StoreBanner banner)
         {
-            _Name = (new DirectoryInfo(path)).Name;
             DirectoryPath = path;
-            base.FullPath = DirectoryPath;
-            StoreBanner = banner;
-            DirectoryInfo = new DirectoryInfo(DirectoryPath);
-            _Exists = new DirectoryInfo(DirectoryPath).Exists;
-            ChildDirectories.Add(null);
-
+            ItemFSInfo = IsDirectory ? new DirectoryInfo(DirectoryPath) : (new FileInfo(DirectoryPath)) as FileSystemInfo;
+            Name = ItemFSInfo.Name;
+            if(IsDirectory)
+            {
+                StoreBanner = banner;
+                ChildItems.Add(null);
+            }
         }
-        public DirectoryMeta(int id, StoreBanner storeBanner, bool isRevitProject, string directoryPath)
+
+        public DirectoryMeta(string directoryPath, string name, StoreBanner storeBanner, bool isRevitProject)
         {
-            Id = id;
-            StoreBanner = storeBanner;
-            IsRevitProject = isRevitProject;
             DirectoryPath = directoryPath;
-            base.FullPath = DirectoryPath;
-            DirectoryInfo = new DirectoryInfo(DirectoryPath);
-            _Name = DirectoryInfo.Name;
-            ChildDirectories.Add(null);
+            IsRevitProject = isRevitProject;
+            ItemFSInfo = IsDirectory ? new DirectoryInfo(DirectoryPath) : (new FileInfo(DirectoryPath)) as FileSystemInfo;
+            Name = ItemFSInfo.Name;
+            if(IsDirectory)
+            {
+                StoreBanner = storeBanner;
+                ChildItems.Add(null);
+            }
         }
         public DirectoryInfo GetDirectoryInfo()
         {
-            if (this.DirectoryInfo == null)
-                DirectoryInfo = new DirectoryInfo(DirectoryPath);
-            return DirectoryInfo;
+            if (ItemFSInfo != null)
+                return IsDirectory ? ItemFSInfo as DirectoryInfo : (ItemFSInfo as FileInfo).Directory;   
+            return IsDirectory ? new DirectoryInfo(DirectoryPath) : (new FileInfo(DirectoryPath)).Directory; 
         }
-        public void LoadChildDirectories(Dispatcher dispatcher)
+        public void LoadChildItems(Dispatcher dispatcher)
         {
-            ChildDirectories.Clear();
-            GetDirectoryInfo().GetDirectories().ToList().ForEach(x =>
+            if (ChildItems[0] != null)
+                return;
+            ChildItems.Clear();
+            GetDirectoryInfo().GetFileSystemInfos().ToList().ForEach(x =>
             {
-                var meta = new DirectoryMeta(x);
-                dispatcher.Invoke(() =>
+                if (!Regex.IsMatch(x.Name, "^[.]"))
                 {
-                    meta.ChildDirectories.Add(null);
-                    ChildDirectories.Add(meta);
-                });
+                        DirectoryMeta meta = x is DirectoryInfo ? DBServices.Instance.GetInsertFolderData(x as DirectoryInfo) : new DirectoryMeta(x.FullName);
+                        if (meta.IsDirectory)
+                            meta.ChildItems.Add(null);
+                        ChildItems.Add(meta);
+                   
+                }
             });
         }
-        public override void Delete()
-        {
-            DirectoryInfo.Delete();
-        }
-
         public static implicit operator DirectoryMeta(DirectoryInfo data)
         {
             return new DirectoryMeta(data);
         }
-
         public static implicit operator DirectoryInfo(DirectoryMeta data)
         {
             return (DirectoryInfo)data;

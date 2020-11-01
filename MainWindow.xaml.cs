@@ -19,6 +19,10 @@ using System.Xaml;
 using System.Diagnostics;
 using System.Collections;
 using FileExplorer.Properties;
+using System.Text.RegularExpressions;
+using System.ComponentModel;
+using System.Windows.Input;
+using System.Threading.Tasks;
 
 namespace FileExplorer
 {
@@ -28,23 +32,102 @@ namespace FileExplorer
     public partial class MainWindow : Window
     {
         private DBServices DB = DBServices.Instance;
-        //public ObservableCollection<DirectoryMeta> RootFolders { get; set; } = new ObservableCollection<DirectoryMeta>();
-        //public ObservableConcurrentDictionary<string, DirectoryMeta> RootFolders { get; set; } = new ObservableConcurrentDictionary<string, DirectoryMeta>();
-        public ObservableConcurrentDictionary<DirectoryMeta, FolderTreeData> RootFolders { get; set; } = new ObservableConcurrentDictionary<DirectoryMeta, FolderTreeData>();
-        public ObservableCollection<DirectoryMeta> FD = new ObservableCollection<DirectoryMeta>();
+        public ObservableCollection<DirectoryMeta> RootFolders = new ObservableCollection<DirectoryMeta>();
         private DBFileWatch dbFileWatch = new DBFileWatch();
         private static bool HasSearched = false;
-        
+
         public MainWindow()
         {
+            DB.InitializeDB();
             InitializeComponent();
             InitRootFolders();
-            //DB.InitializeDB();
-            //
-            fileTree.UpdateLayout();
-            //InitTopBar();
+
+            InitTopBar();
             //dbFileWatch.FileChanged += DbFileWatch_FileChanged;
         }
+        private void InitRootFolders()
+        {
+            if (!Settings.Default.IsOnGRServer)
+            {
+               foreach (var dir in Directory.GetDirectories(@"C:\Users\kenne\Documents\Dev Projects\TestDirectory"))
+                {
+                    DirectoryInfo i = new DirectoryInfo(dir);
+                    if (Regex.IsMatch(i.Name, "."))
+                    {
+                        DirectoryMeta directoryMeta = DB.GetInsertFolderData(dir);
+                        directoryMeta.LoadChildItems(Dispatcher);
+                        RootFolders.Add(directoryMeta);
+                    }
+                }
+            }
+            fileTree.ItemsSource = RootFolders;
+        }
+        private void FileTree_Expanded(object sender, RoutedEventArgs e)
+        {
+            TreeViewItem item = (TreeViewItem)e.OriginalSource;
+            var dm = item.DataContext as DirectoryMeta;
+            item.ContextMenu = CreateBannerContextMenu(dm);
+            if (dm.IsDirectory)
+                dm.LoadChildItems(this.Dispatcher);
+            item.Items.SortDescriptions.Add(new SortDescription("Type", ListSortDirection.Ascending));
+            item.Items.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+        }
+        private void TextSearch()
+        {
+            List<DirectoryMeta> dirsFound = new List<DirectoryMeta>();
+            string searchCondition = String.Format(".*{0}.*", txt_Search.Text.ToLower());
+            foreach (DirectoryMeta item in RootFolders)
+            {
+                if (Regex.IsMatch(item.Name.ToLower(), searchCondition))
+                    dirsFound.Add(item);
+                TraversalSearch(ref dirsFound, item, searchCondition);
+            }
+            fileTree.ItemsSource = dirsFound;
+            fileTree.Items.SortDescriptions.Add(new SortDescription("Type", ListSortDirection.Ascending));
+            fileTree.Items.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+        }
+        private void TraversalSearch(ref List<DirectoryMeta> dirsFound, DirectoryMeta parent, string searchCondition)
+        {
+            foreach (DirectoryMeta sub in parent.ChildItems.Where(x => x != null))
+            {
+                if (Regex.IsMatch(sub.Name.ToLower(), searchCondition))
+                    dirsFound.Add(sub);
+                TraversalSearch(ref dirsFound, sub, searchCondition);
+            }
+        }
+        private void btnSearch_Click(object sender, RoutedEventArgs e)
+        {
+            if (!String.IsNullOrEmpty(txt_Search.Text))
+                TextSearch();
+            else
+                fileTree.ItemsSource = RootFolders;
+        }
+        private void txt_Search_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                if (!String.IsNullOrEmpty(txt_Search.Text))
+                    TextSearch();
+                else
+                    fileTree.ItemsSource = RootFolders;
+            }
+        }
+        private ContextMenu CreateBannerContextMenu(DirectoryMeta fs)
+        {
+            ContextMenu menu = new ContextMenu();
+            foreach (StoreBanner banner in DB.Banners.Values)
+            {
+                MenuItem item = new MenuItem() { Header = banner.BANNER_NAME, Tag = banner };
+                item.Click += delegate (object sender, RoutedEventArgs e)
+                {
+                    fs.StoreBanner = banner;
+                    DB.CheckAndInsertUpdateData(fs);
+                };
+                menu.Items.Add(item);
+            }
+            return menu;
+        }
+
         private void DbFileWatch_FileChanged(string filePath)
         {
             if (!DB.IsApplicationUpdate)
@@ -60,7 +143,7 @@ namespace FileExplorer
                             ObservableCollection<TreeViewItem> itemsFound = new ObservableCollection<TreeViewItem>();
                             foreach (var dir in DB.SearchFoldersByTag(banner))
                             {
-                                itemsFound.Add(CreateTreeViewItem(dir.Value.DirectoryInfo));
+                                itemsFound.Add(CreateTreeViewItem(dir.Value.ItemFSInfo));
                             }
                             fileTree.ItemsSource = itemsFound;
                             HasSearched = true;
@@ -77,37 +160,6 @@ namespace FileExplorer
                 DB.IsApplicationUpdate = false;
             }
         }
-        private void InitRootFolders()
-        {
-            if (!Settings.Default.IsOnGRServer)
-            {
-                foreach (var dir in Directory.GetDirectories(@"C:\Users\kenne\Documents\Dev Projects\TestDirectory"))
-                {
-                    //RootFolders.TryAdd(dir, CreateTreeViewItem(new DirectoryInfo(dir)));
-                    DirectoryMeta directoryMeta = new DirectoryMeta(dir);
-                    //FolderTreeData fData = new FolderTreeData(directoryMeta.DirectoryInfo);
-                    //var cd = fData.ChildDirectories;
-                    //var cf = fData.DirectoryFiles;
-                    //RootFolders.TryAdd(directoryMeta, fData);
-                    directoryMeta.LoadChildDirectories(Dispatcher);
-                    FD.Add(directoryMeta);
-                }
-            }
-            fileTree.ItemsSource = FD;
-            
-            //fileTree.ItemsSource = RootFolders.Values;
-            //RootFolders.CollectionChanged += RootFolders_CollectionChanged;
-        }
-
-        private void fileTree_Expanded(object sender, RoutedEventArgs e)
-        {
-            var t = e.GetType();
-            TreeViewItem item = (TreeViewItem)e.OriginalSource;
-            var test = item.DataContext as DirectoryMeta;
-            test.LoadChildDirectories(this.Dispatcher);
-            //fileTree.UpdateLayout();
-            //fileTree.Items.Refresh();
-        }
         private void InitTopBar()
         {
             DB.Banners.AsParallel().ForAll(banner =>
@@ -115,7 +167,7 @@ namespace FileExplorer
                 if (!String.IsNullOrEmpty(banner.Value.BANNER_NAME))
                     Dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)(() =>
                     {
-                        Chip tagChip = new Chip() { Name ="btn_"+banner.Key, Tag = banner.Value, Icon = new PackIcon() { Kind = PackIconKind.Tag }, Content = banner.Value.BANNER_NAME, Margin = new Thickness(5) };
+                        Chip tagChip = new Chip() { Name = "btn_" + banner.Key, Tag = banner.Value, Icon = new PackIcon() { Kind = PackIconKind.Tag }, Content = banner.Value.BANNER_NAME, Margin = new Thickness(5) };
                         tagChip.Click += TagChip_Click;
                         TopBar.Children.Add(tagChip);
                     }));
@@ -123,7 +175,7 @@ namespace FileExplorer
         }
         private void TagChip_Click(object sender, RoutedEventArgs e)
         {
-            this.Dispatcher.Invoke(() => 
+            this.Dispatcher.Invoke(() =>
             {
                 StoreBanner banner = (sender is Chip) ? (sender as Chip).Tag as StoreBanner : sender as StoreBanner;
                 if (banner.BANNER_CODE == DBServices.NoBanner.BANNER_CODE)
@@ -136,7 +188,7 @@ namespace FileExplorer
                     ObservableCollection<TreeViewItem> itemsFound = new ObservableCollection<TreeViewItem>();
                     foreach (var dir in DB.SearchFoldersByTag(banner))
                     {
-                        itemsFound.Add(CreateTreeViewItem(dir.Value.DirectoryInfo));
+                        itemsFound.Add(CreateTreeViewItem(dir.Value.ItemFSInfo));
                     }
                     fileTree.ItemsSource = itemsFound;
                     HasSearched = true;
@@ -150,7 +202,7 @@ namespace FileExplorer
             DirectoryMeta nodeItem = this.Dispatcher.Invoke(new Func<DirectoryMeta>(() => { return node.Tag as DirectoryMeta; }));
             DirectoryMeta dbData = dirs[nodeItem.DirectoryPath];
             TreeViewItem parentNode = node;
-            if (parentNode.Items.Count > 0 && parentNode.Items[0] != null )
+            if (parentNode.Items.Count > 0 && parentNode.Items[0] != null)
             {
                 for (int i = 0; i < parentNode.Items.Count; i++)
                 {
@@ -161,7 +213,7 @@ namespace FileExplorer
             else
             {
                 if (nodeItem.GetHashCode() != dbData.GetHashCode())
-                    return this.Dispatcher.Invoke(new Func<TreeViewItem>(() => { return CreateTreeViewItem(dbData.DirectoryInfo); }));
+                    return this.Dispatcher.Invoke(new Func<TreeViewItem>(() => { return CreateTreeViewItem(dbData.ItemFSInfo); }));
                 else
                     return parentNode;
             }
@@ -220,7 +272,7 @@ namespace FileExplorer
                         DirectoryMeta dir = dirMeta;
                         dirMeta.StoreBanner = x.Value;
                         DB.CheckAndInsertUpdateData(dir);
-                        item = CreateTreeViewItem(dir.DirectoryInfo);
+                        item = CreateTreeViewItem(dir.ItemFSInfo);
                         if (x.Value.BANNER_CODE != DBServices.NoBanner.BANNER_CODE)
                         {
                             chipBanner.Content = x.Value.BANNER_NAME;
@@ -240,7 +292,7 @@ namespace FileExplorer
                             ObservableCollection<TreeViewItem> itemsFound = new ObservableCollection<TreeViewItem>();
                             foreach (var directory in DB.SearchFoldersByTag(banner))
                             {
-                                itemsFound.Add(CreateTreeViewItem(directory.Value.DirectoryInfo));
+                                itemsFound.Add(CreateTreeViewItem(directory.Value.ItemFSInfo));
                             }
                             fileTree.ItemsSource = itemsFound;
                             HasSearched = true;
@@ -260,15 +312,13 @@ namespace FileExplorer
 
             if (node.Tag != null)
             {
-                DirectoryInfo dir = (node.Tag as DirectoryMeta).DirectoryInfo;
+                DirectoryInfo dir = (node.Tag as DirectoryMeta).ItemFSInfo as DirectoryInfo;
                 foreach (DirectoryInfo sub in dir.GetDirectories())
                 {
                     node.Items.Add(CreateTreeViewItem(sub));
                 }
             }
         }
-
-       
     }
     public class DBFileWatch
     {
@@ -289,5 +339,5 @@ namespace FileExplorer
         }
     }
 
-   
+
 }

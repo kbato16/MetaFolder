@@ -11,6 +11,7 @@ using System.IO;
 using System;
 using FileExplorer.Properties;
 using System.Windows.Input;
+using System.Runtime.InteropServices.WindowsRuntime;
 
 namespace FileExplorer
 {
@@ -20,6 +21,11 @@ namespace FileExplorer
         public bool IsApplicationUpdate = false;
         public ObservableConcurrentDictionary<string, StoreBanner> Banners { get; set; }
         public ObservableConcurrentDictionary<string, DirectoryMeta> Folders { get; set; }
+        private void UpdateServiceCollection()
+        {
+            Folders = GetFoldersData();
+            Banners = GetStoreBanners();
+        }
         public void AddBanner(StoreBanner storeBanner)
         {
             IsApplicationUpdate = true;
@@ -32,21 +38,21 @@ namespace FileExplorer
                 Banners = collection.FindAll().ToDictionary(banner => banner.BANNER_CODE);
             }
         }
-        public StoreBanner CheckAndInsertUpdateData(StoreBanner data)
+        public StoreBanner DB_CheckAndInsertUpdateBannerData(StoreBanner data)
         {
-            
             IsApplicationUpdate = true;
-            //ConfigurationManager.ConnectionStrings["LiteDB"].ConnectionString
             using (var db = new LiteDatabase(Settings.Default.ConnectionString))
             {
+                db.Timeout = TimeSpan.FromSeconds(2);
                 var collection = db.GetCollection<StoreBanner>("storebanners");
                 if (!collection.Exists(x => x.BANNER_CODE == data.BANNER_CODE || x.BANNER_NAME == data.BANNER_NAME))
                     collection.Insert(data);
-                else if(!collection.Exists(x => x.BANNER_CODE == data.BANNER_CODE && x.BANNER_NAME == data.BANNER_NAME && x.CLIENT == data.CLIENT))
+                else if (!collection.Exists(x => x.BANNER_CODE == data.BANNER_CODE && x.BANNER_NAME == data.BANNER_NAME && x.CLIENT == data.CLIENT))
                     collection.Update(data);
                 db.Commit();
-                Banners = collection.FindAll().ToDictionary(banner => banner.BANNER_CODE);
+
             }
+            UpdateServiceCollection();
             return Banners[data.BANNER_CODE];
         }
         public DirectoryMeta CheckAndInsertUpdateData(DirectoryMeta data)
@@ -54,15 +60,15 @@ namespace FileExplorer
             IsApplicationUpdate = true;
             using (var db = new LiteDatabase(Settings.Default.ConnectionString))
             {
-                 
+                db.Timeout = TimeSpan.FromSeconds(2);
                 var collection = db.GetCollection<DirectoryMeta>("projdirs");
                 if (!collection.Exists(x => x.DirectoryPath == data.DirectoryPath))
                     collection.Insert(data);
-                else if(!collection.Exists(x => x.DirectoryPath == data.DirectoryPath && x.StoreBanner.BANNER_CODE == data.StoreBanner.BANNER_CODE))
+                else if (!collection.Exists(x => x.DirectoryPath == data.DirectoryPath && x.StoreBanner.BANNER_CODE == data.StoreBanner.BANNER_CODE))
                     collection.Update(data);
                 db.Commit();
-                Folders = collection.Include<StoreBanner>(x=>x.StoreBanner).FindAll().ToDictionary(folder => folder.DirectoryPath);
             }
+            UpdateServiceCollection();
             return Folders[data.DirectoryPath];
         }
         public DirectoryMeta GetInsertFolderData(string Path)
@@ -70,20 +76,33 @@ namespace FileExplorer
             DirectoryMeta meta = GetFoldersData().ContainsKey(Path) ? Folders[Path] : CheckAndInsertUpdateData(new DirectoryMeta(Path, NoBanner));
             return meta;
         }
+        public DirectoryMeta GetInsertFolderData(DirectoryInfo dirinfo)
+        {
+            DirectoryMeta meta = GetFoldersData().ContainsKey(dirinfo.FullName) ? Folders[dirinfo.FullName] : CheckAndInsertUpdateData(new DirectoryMeta(dirinfo.FullName, NoBanner));
+            return meta;
+        }
         public Dictionary<string, DirectoryMeta> GetFoldersData()
         {
             using (var db = new LiteDatabase(Settings.Default.ConnectionString))
             {
-                Folders = db.GetCollection<DirectoryMeta>("projdirs").Include<StoreBanner>(x=>x.StoreBanner).FindAll().ToDictionary(folder => folder.DirectoryPath);
-                IsApplicationUpdate = true;
-                foreach (var folder in Folders)
+                db.Timeout = TimeSpan.FromSeconds(2);
+                try
                 {
-                    if (!folder.Value.GetDirectoryInfo().Exists)
+                    Folders = db.GetCollection<DirectoryMeta>("projdirs").Include<StoreBanner>(x => x.StoreBanner).FindAll().ToDictionary(folder => folder.DirectoryPath);
+                    IsApplicationUpdate = true;
+                    foreach (var folder in Folders)
                     {
-                        db.GetCollection<DirectoryMeta>("projdirs").Delete(folder.Value.Id);
+                        if (!folder.Value.GetDirectoryInfo().Exists)
+                        {
+                            db.GetCollection<DirectoryMeta>("projdirs").Delete(folder.Value.Id);
+                        }
                     }
+                    db.Commit();
                 }
-                db.Commit();
+                catch (ArgumentNullException)
+                {
+                    return Folders;
+                }
             }
             return Folders;
         }
@@ -91,6 +110,7 @@ namespace FileExplorer
         {
             using (var db = new LiteDatabase(Settings.Default.ConnectionString))
             {
+                db.Timeout = TimeSpan.FromSeconds(2);
                 Banners = db.GetCollection<StoreBanner>("storebanners").FindAll().ToDictionary(banner => banner.BANNER_CODE);
                 db.Commit();
             }
@@ -100,6 +120,7 @@ namespace FileExplorer
         {
             using (var db = new LiteDatabase(Settings.Default.ConnectionString))
             {
+                db.Timeout = TimeSpan.FromSeconds(2);
                 Folders = db.GetCollection<DirectoryMeta>("projdirs").Include<StoreBanner>(x => x.StoreBanner).Query().Where(x => x.StoreBanner.BANNER_CODE == banner.BANNER_CODE).ToList().ToDictionary(folder => folder.DirectoryPath);
                 db.Commit();
             }
@@ -109,7 +130,7 @@ namespace FileExplorer
         {
             IsApplicationUpdate = true;
             AddBanner(NoBanner);
-            AddBanner(new StoreBanner() { BANNER_CODE = "SWY", BANNER_NAME = "Safeway", CLIENT = "Sobeys"});
+            AddBanner(new StoreBanner() { BANNER_CODE = "SWY", BANNER_NAME = "Safeway", CLIENT = "Sobeys" });
             AddBanner(new StoreBanner() { BANNER_CODE = "FDL", BANNER_NAME = "Foodland", CLIENT = "Sobeys" });
             AddBanner(new StoreBanner() { BANNER_CODE = "FCO", BANNER_NAME = "FreschCo", CLIENT = "Sobeys" });
             AddBanner(new StoreBanner() { BANNER_CODE = "CHL", BANNER_NAME = "Chalo", CLIENT = "Sobeys" });
@@ -119,10 +140,10 @@ namespace FileExplorer
         }
 
         #region Singleton pattern
-        private DBServices() 
-        { 
-            Banners = new Dictionary<string, StoreBanner>(); 
-            Folders = new Dictionary<string, DirectoryMeta>(); 
+        private DBServices()
+        {
+            Banners = new Dictionary<string, StoreBanner>();
+            Folders = new Dictionary<string, DirectoryMeta>();
         }
         private static readonly DBServices instance = new DBServices();
         public static DBServices Instance { get { return instance; } }
