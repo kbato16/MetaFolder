@@ -38,28 +38,13 @@ namespace FileExplorer
 
         public MainWindow()
         {
-            DB.InitializeDB();
             InitializeComponent();
             InitRootFolders();
-
             InitTopBar();
             //dbFileWatch.FileChanged += DbFileWatch_FileChanged;
         }
         private void InitRootFolders()
         {
-            if (!Settings.Default.IsOnGRServer)
-            {
-               foreach (var dir in Directory.GetDirectories(@"C:\Users\kenne\Documents\Dev Projects\TestDirectory"))
-                {
-                    DirectoryInfo i = new DirectoryInfo(dir);
-                    if (Regex.IsMatch(i.Name, "."))
-                    {
-                        DirectoryMeta directoryMeta = DB.GetInsertFolderData(dir);
-                        directoryMeta.LoadChildItems(Dispatcher);
-                        RootFolders.Add(directoryMeta);
-                    }
-                }
-            }
             fileTree.ItemsSource = RootFolders;
         }
         private void FileTree_Expanded(object sender, RoutedEventArgs e)
@@ -68,7 +53,7 @@ namespace FileExplorer
             var dm = item.DataContext as DirectoryMeta;
             item.ContextMenu = CreateBannerContextMenu(dm);
             if (dm.IsDirectory)
-                dm.LoadChildItems(this.Dispatcher);
+                dm.LoadChildItems();
             item.Items.SortDescriptions.Add(new SortDescription("Type", ListSortDirection.Ascending));
             item.Items.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
         }

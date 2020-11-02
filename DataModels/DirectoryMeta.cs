@@ -55,7 +55,7 @@ namespace FileExplorer.DataModels
             DirectoryPath = path;
             ItemFSInfo = IsDirectory ? new DirectoryInfo(DirectoryPath) : (new FileInfo(DirectoryPath)) as FileSystemInfo;
             Name = ItemFSInfo.Name;
-            if(IsDirectory)
+            if (IsDirectory)
             {
                 StoreBanner = DBServices.NoBanner;
                 ChildItems.Add(null);
@@ -77,20 +77,19 @@ namespace FileExplorer.DataModels
             DirectoryPath = path;
             ItemFSInfo = IsDirectory ? new DirectoryInfo(DirectoryPath) : (new FileInfo(DirectoryPath)) as FileSystemInfo;
             Name = ItemFSInfo.Name;
-            if(IsDirectory)
+            if (IsDirectory)
             {
                 StoreBanner = banner;
                 ChildItems.Add(null);
             }
         }
-
         public DirectoryMeta(string directoryPath, string name, StoreBanner storeBanner, bool isRevitProject)
         {
             DirectoryPath = directoryPath;
             IsRevitProject = isRevitProject;
             ItemFSInfo = IsDirectory ? new DirectoryInfo(DirectoryPath) : (new FileInfo(DirectoryPath)) as FileSystemInfo;
             Name = ItemFSInfo.Name;
-            if(IsDirectory)
+            if (IsDirectory)
             {
                 StoreBanner = storeBanner;
                 ChildItems.Add(null);
@@ -99,23 +98,22 @@ namespace FileExplorer.DataModels
         public DirectoryInfo GetDirectoryInfo()
         {
             if (ItemFSInfo != null)
-                return IsDirectory ? ItemFSInfo as DirectoryInfo : (ItemFSInfo as FileInfo).Directory;   
-            return IsDirectory ? new DirectoryInfo(DirectoryPath) : (new FileInfo(DirectoryPath)).Directory; 
+                return IsDirectory ? ItemFSInfo as DirectoryInfo : (ItemFSInfo as FileInfo).Directory;
+            return IsDirectory ? new DirectoryInfo(DirectoryPath) : (new FileInfo(DirectoryPath)).Directory;
         }
-        public void LoadChildItems(Dispatcher dispatcher)
+        public void LoadChildItems()
         {
             if (ChildItems[0] != null)
                 return;
             ChildItems.Clear();
-            GetDirectoryInfo().GetFileSystemInfos().ToList().ForEach(x =>
+            GetDirectoryInfo().GetFileSystemInfos().ToList().AsParallel().ForAll(x =>
             {
                 if (!Regex.IsMatch(x.Name, "^[.]"))
                 {
-                        DirectoryMeta meta = x is DirectoryInfo ? DBServices.Instance.GetInsertFolderData(x as DirectoryInfo) : new DirectoryMeta(x.FullName);
-                        if (meta.IsDirectory)
-                            meta.ChildItems.Add(null);
-                        ChildItems.Add(meta);
-                   
+                    DirectoryMeta meta = x is DirectoryInfo ? DBServices.Instance.GetInsertFolderData(x as DirectoryInfo) : new DirectoryMeta(x.FullName);
+                    if (meta.IsDirectory)
+                        meta.ChildItems.Add(null);
+                    ChildItems.Add(meta);
                 }
             });
         }

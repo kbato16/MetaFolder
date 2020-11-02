@@ -1,8 +1,12 @@
 ﻿using FileExplorer.DataModels;
 using FileExplorer.Properties;
 using Microsoft.Win32;
+using System.IO;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace FileExplorer
@@ -14,6 +18,7 @@ namespace FileExplorer
     {
         private void App_Start(object sender, StartupEventArgs e)
         {
+            DBServices.Instance.InitializeDB();
             if (Settings.Default.IsFirstRun)
             {
                 MessageBoxResult result = MessageBox.Show("Is it a GR Machine?", "For Root Directories", MessageBoxButton.YesNo);
@@ -41,6 +46,24 @@ namespace FileExplorer
                     DirectoryMeta directoryMeta = new DirectoryMeta(dir);
                     main.RootFolders.Add(directoryMeta);
                 }
+            }
+            else
+            {
+                foreach (var dir in Directory.GetDirectories(@"C:\Users\kenne\Documents\Dev Projects\TestDirectory"))
+                {
+                    DirectoryInfo i = new DirectoryInfo(dir);
+                    if (Regex.IsMatch(i.Name, "."))
+                    {
+                        DirectoryMeta directoryMeta = DBServices.Instance.GetInsertFolderData(dir);
+                        //directoryMeta.LoadChildItems(Dispatcher);
+                        main.RootFolders.Add(directoryMeta);
+                    }
+                }
+                Parallel.ForEach(main.RootFolders, (folder, state) => 
+                {
+                    folder.LoadChildItems();
+                    state.Break();
+                });
             }
             main.Show();
         }
