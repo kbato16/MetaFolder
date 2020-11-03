@@ -61,7 +61,7 @@ namespace FileExplorer
                 }
                 Parallel.ForEach(main.RootFolders, (folder, state) => 
                 {
-                    folder.LoadChildItems();
+                    folder.LoadChildItems(Dispatcher);
                     state.Break();
                 });
             }

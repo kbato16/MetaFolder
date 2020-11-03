@@ -51,9 +51,9 @@ namespace FileExplorer
         {
             TreeViewItem item = (TreeViewItem)e.OriginalSource;
             var dm = item.DataContext as DirectoryMeta;
-            item.ContextMenu = CreateBannerContextMenu(dm);
+            //item.ContextMenu = CreateBannerContextMenu(dm);
             if (dm.IsDirectory)
-                dm.LoadChildItems();
+                dm.LoadChildItems(Dispatcher);
             item.Items.SortDescriptions.Add(new SortDescription("Type", ListSortDirection.Ascending));
             item.Items.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
         }
