@@ -51,7 +51,6 @@ namespace FileExplorer
         {
             TreeViewItem item = (TreeViewItem)e.OriginalSource;
             var dm = item.DataContext as DirectoryMeta;
-            //item.ContextMenu = CreateBannerContextMenu(dm);
             if (dm.IsDirectory)
                 dm.LoadChildItems(Dispatcher);
             item.Items.SortDescriptions.Add(new SortDescription("Type", ListSortDirection.Ascending));
@@ -97,22 +96,6 @@ namespace FileExplorer
                     fileTree.ItemsSource = RootFolders;
             }
         }
-        private ContextMenu CreateBannerContextMenu(DirectoryMeta fs)
-        {
-            ContextMenu menu = new ContextMenu();
-            foreach (StoreBanner banner in DB.Banners.Values)
-            {
-                MenuItem item = new MenuItem() { Header = banner.BANNER_NAME, Tag = banner };
-                item.Click += delegate (object sender, RoutedEventArgs e)
-                {
-                    fs.StoreBanner = banner;
-                    DB.CheckAndInsertUpdateData(fs);
-                };
-                menu.Items.Add(item);
-            }
-            return menu;
-        }
-
         private void DbFileWatch_FileChanged(string filePath)
         {
             if (!DB.IsApplicationUpdate)

@@ -94,7 +94,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Converters\BannerToBoolConverter.cs" />
+    <Compile Include="Converters\MetaToTreeViewItemConverter.cs" />
     <Compile Include="Converters\KeyValueToFolderTreeConverter.cs" />
     <Compile Include="Converters\TagToBannerConverter.cs" />
     <Compile Include="DataModels\DBServices.cs" />

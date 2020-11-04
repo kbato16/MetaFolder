@@ -21,7 +21,7 @@
         ">
     <Window.Resources>
         <converters:TagToBannerConverter x:Key="BannerConverter"/>
-        <converters:BannerToBoolConverter x:Key="IsVisibleConverter"/>
+        <converters:MetaToTreeViewItemConverter x:Key="ItemConverter"/>
         <converters:KeyValueToFolderTreeConverter x:Key="ConvertToFolderTree"/>
         <converters:KeyValueToDirectoryMeta x:Key="ConvertToDirectoryMeta"/>
         <converters:CollectionSourceConverter x:Key="CollectionConverter"/>
@@ -65,9 +65,10 @@
                 <HierarchicalDataTemplate
                     DataType="{x:Type db:DirectoryMeta}"
                     ItemsSource="{Binding ChildItems}">
-                    <TextBlock 
-                        Text="{Binding Name}" 
-                        ToolTip="{Binding DirectoryPath}"/>
+                    <StackPanel ContextMenu="{Binding BindsDirectlyToSource=True, Converter={StaticResource ItemConverter}}">
+                        <TextBlock 
+                        Text="{Binding Name}"/>
+                    </StackPanel>
                 </HierarchicalDataTemplate>
             </TreeView.ItemTemplate>
             <!--

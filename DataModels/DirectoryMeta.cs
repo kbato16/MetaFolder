@@ -113,26 +113,11 @@ namespace FileExplorer.DataModels
                     DirectoryMeta meta = x is DirectoryInfo ? DBServices.Instance.GetInsertFolderData(x as DirectoryInfo) : new DirectoryMeta(x.FullName);
                     if (meta.IsDirectory)
                         meta.ChildItems.Add(null);
-                    TreeViewItem item = new TreeViewItem() { Header = meta.Name, ContextMenu = CreateBannerContextMenu(meta) };
-                    ChildItems.Add(item);
+                    ChildItems.Add(meta);
                 }
             });
         }
-        private ContextMenu CreateBannerContextMenu(DirectoryMeta fs)
-        {
-            ContextMenu menu = new ContextMenu();
-            foreach (StoreBanner banner in DBServices.Instance.Banners.Values)
-            {
-                MenuItem item = new MenuItem() { Header = banner.BANNER_NAME, Tag = banner };
-                item.Click += delegate (object sender, RoutedEventArgs e)
-                {
-                    fs.StoreBanner = banner;
-                    DBServices.Instance.CheckAndInsertUpdateData(fs);
-                };
-                menu.Items.Add(item);
-            }
-            return menu;
-        }
+     
         public void LoadChildItems(Dispatcher dispatcher)
         {
             if (ChildItems[0] != null)
